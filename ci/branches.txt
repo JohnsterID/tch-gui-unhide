@@ -1,0 +1,27 @@
+# Branches of this fork merged, in this order, onto upstream master to form `develop`.
+# Only branches written by the fork owner belong here; ci/build-develop.sh refuses
+# any commit whose author or committer is someone else. One branch per line; # starts a comment.
+fix-tproxy-go-archives
+fix-5ghz-channel-select
+fix-band-steering-gui
+fix-wifi-legacy-security-modes
+fix-syslog-flush-on-reboot
+dosprotect-rate-limiting-switch
+fix-wifi-pmf-required
+agh-verify-download
+fix-ssh-password-auth-display
+agh-remove-cleanup
+agh-local-password-hash
+agh-dns-loopback-k
+agh-update-verify-download
+fix-agh-lists-update
+fix-agh-analyse-work-dir
+fix-reboot-on-coredump-default
+fix-show-bank-plan-passive-suffix
+fix-unflock-file-locks
+fix-ost-setup-free-space
+fix-bridged-booster-ipv6-default
+fix-agh-update-cron-day
+fix-guest-restore-round-trip
+fix-de-telstra-multiap-agent-enable
+udp-wmem-default-sysctl

@@ -1,0 +1,110 @@
+# Rebuilds `develop` = upstream master + the fork branches in ci/branches.txt, checks every listed
+# branch and the merged result, builds the installers, and force-updates `develop` when it changed.
+# Scheduled runs only fire from the repository's default branch, so this file lives on `ci`.
+name: develop
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: develop
+  cancel-in-progress: false
+
+jobs:
+  develop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      UPSTREAM: https://github.com/seud0nym/tch-gui-unhide.git
+      ALLOWED_EMAIL: 69278611+JohnsterID@users.noreply.github.com
+    steps:
+      - name: Check out the CI scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: ci-src
+
+      - name: Check out the fork
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: fork
+          fetch-depth: 0
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q lua5.1 busybox dos2unix file
+          python3 -m pip install --user -q shellcheck-py==0.10.0.1
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build develop
+        id: build
+        working-directory: fork
+        run: |
+          git config user.name JohnsterID
+          git config user.email "$ALLOWED_EMAIL"
+          git remote add upstream "$UPSTREAM"
+          set +e
+          sh ../ci-src/ci/build-develop.sh upstream origin | tee ../build-develop.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          [ "$rc" -ne 1 ]
+
+      - name: Check each listed branch against upstream master
+        working-directory: fork
+        run: |
+          git worktree add -q --detach ../base upstream/master
+          fail=0
+          for b in $(sed -e 's/#.*//' ../ci-src/ci/branches.txt); do
+            git rev-parse -q --verify "origin/$b" >/dev/null || continue
+            git worktree add -q --detach "../br-$b" "origin/$b"
+            echo "::group::$b"
+            python3 ../ci-src/ci/check.py "../br-$b" --base ../base --extras || { fail=1; echo "::error::$b fails the static checks"; }
+            echo "::endgroup::"
+            git worktree remove --force "../br-$b"
+          done
+          exit $fail
+
+      - name: Check the develop sources
+        run: python3 ci-src/ci/check.py fork --base base --extras
+
+      - name: Build installers (upstream master and develop)
+        run: |
+          for t in base fork; do
+            mkdir -p "/tmp/out-$t"
+            git -C "$t" archive HEAD | tar -x -C "/tmp/out-$t"
+            (cd "/tmp/out-$t/build" && sh ./build -v "$(date -u +%Y.%m.%d)@00:00" > "../../build-$t.log" 2>&1)
+            ls -l /tmp/out-$t/tch-gui-unhide-*
+          done
+
+      - name: Check develop
+        run: python3 ci-src/ci/check.py /tmp/out-fork --base /tmp/out-base --installers
+
+      - name: Upload develop installers
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tch-gui-unhide-develop
+          path: /tmp/out-fork/tch-gui-unhide-*
+          retention-days: 30
+
+      - name: Publish develop
+        working-directory: fork
+        run: |
+          new=$(git rev-parse develop)
+          old=$(git ls-remote origin refs/heads/develop | cut -f1)
+          if [ "$new" = "$old" ]; then echo "develop unchanged ($new)"; exit 0; fi
+          git push --force-with-lease="develop:${old}" origin develop
+          echo "develop: ${old:-none} -> $new" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '```'; cat build-develop.log 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.build.outputs.rc }}" = "2" ]; then
+            echo "::warning::one or more branches were skipped (see the summary)"; exit 1
+          fi
