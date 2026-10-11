@@ -15,11 +15,23 @@ for f in /etc/hotplug.d/net/10-w*-peer-firewall /usr/share/tch-gui-unhide/w*-pee
   [ -e "$f" ] && rm "$f"
 done
 
+# WireGuard is either openwrt-wireguard-go (wireguard-go, with wg-go as the control program) or the
+# kernel module (wireguard.ko for the running kernel, with wg from wireguard-tools). Both need a
+# netifd wireguard protocol handler.
+WG_CMD=""
+if [ -f /usr/bin/wireguard-go -a -f /usr/bin/wg-go ]; then
+  WG_CMD="/usr/bin/wg-go"
+  WG_TYPE=""
+elif [ -f /usr/bin/wg -a -f /lib/modules/$(uname -r)/wireguard.ko ]; then
+  WG_CMD="/usr/bin/wg"
+  WG_TYPE=" (kernel module)"
+fi
+
 # The tch-gui-unhide-xtra scripts should output a single line to indicate success or failure
 # as the calling script has left a hanging echo -n. Include a leading space for clarity.
 
-if [ -f /usr/bin/wireguard-go -a -f /usr/bin/wg-go -a -f /lib/netifd/proto/wireguard.sh -a -z "$XTRAS_REMOVE" ]; then
-  echo " Adding WireGuard support..."
+if [ -n "$WG_CMD" -a -f /lib/netifd/proto/wireguard.sh -a -z "$XTRAS_REMOVE" ]; then
+  echo " Adding WireGuard support${WG_TYPE}..."
 
   cat <<"HP" > /etc/hotplug.d/net/10-wg0-peer-firewall
 HP
@@ -59,6 +71,10 @@ HLP
   chmod 644 /www/docroot/modals/wireguard-modal.lp
   chmod 644 /www/lua/wireguard_helper.lua
 
+  if [ "$WG_CMD" != "/usr/bin/wg-go" ]; then
+    sed -e "s|/usr/bin/wg-go|$WG_CMD|g" -i /usr/share/transformer/mappings/rpc/gui.wireguard.map /www/lua/wireguard_helper.lua
+  fi
+
   [ -e /etc/hotplug.d/net/10-wireguard-peer-firewall ] && /etc/hotplug.d/net/10-wireguard-peer-firewall
 
   SRV_transformer=$(( $SRV_transformer + 1 ))
@@ -68,7 +84,7 @@ HLP
     OCTET_3="$(printf '%d' 0x$(uci get env.var.local_eth_mac | cut -d: -f6))"
     uci set network.wg0='interface'
     uci set network.wg0.proto='wireguard'
-    uci set network.wg0.private_key="$(/usr/bin/wg-go genkey)"
+    uci set network.wg0.private_key="$($WG_CMD genkey)"
     uci set network.wg0.listen_port='51820'
     uci add_list network.wg0.addresses="172.23.${OCTET_3}.1/24"
     if [ -z "$LAN_IPv6" -o "$LAN_IPv6" = "1" ]; then
@@ -165,9 +181,11 @@ ngx.timer.at(0, preLoadWG)' -i $f
   done
 
   uci -q del_list system.@coredump[0].reboot_exceptions='wireguard-go'
-  uci -q add_list system.@coredump[0].reboot_exceptions='wireguard-go'
   uci -q del_list system.@coredump[0].reboot_exceptions='wg-go'
-  uci -q add_list system.@coredump[0].reboot_exceptions='wg-go'
+  if [ "$WG_CMD" = "/usr/bin/wg-go" ]; then
+    uci -q add_list system.@coredump[0].reboot_exceptions='wireguard-go'
+    uci -q add_list system.@coredump[0].reboot_exceptions='wg-go'
+  fi
   uci commit system
   SRV_system=$(( $SRV_system + 2 ))
 else

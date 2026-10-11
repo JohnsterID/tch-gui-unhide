@@ -97,6 +97,8 @@ Ensure opkg in configured correctly (see **opkg Configuration** [`below`](https:
 `grep -q '/openwrt-wireguard-go/' /etc/opkg/customfeeds.conf || echo 'src/gz wg_go https://raw.githubusercontent.com/seud0nym/openwrt-wireguard-go/master/repository/arm_cortex-a9/base' >> /etc/opkg/customfeeds.conf`  
 `opkg update`  
 `opkg install wireguard-go`  
+
+Alternatively, the extra can use the WireGuard kernel module instead of wireguard-go. It does so when wireguard-go is not installed and the module for the running kernel (`/lib/modules/$(uname -r)/wireguard.ko`), the `wg` program (`/usr/bin/wg`) and a netifd `wireguard` protocol handler (`/lib/netifd/proto/wireguard.sh`) are. To switch an existing setup from wireguard-go, bring the interface down and remove the package with `ifdown wg0; opkg remove wireguard-go` (`wg --uninstall` would also delete your WireGuard interfaces and peers), install the kernel module packages, then re-run `tch-gui-unhide`. The `wg0` interface, its peers and the firewall configuration are kept.
 ##### IPv6 ULA Prefix
 If you are using IPv6, you need an IPv6 ULA (Unique Local Addresses) prefix. This can be configured on the **Local Network** card. If you do not configure your own ULA prefix and your network is configured for IPv6, the installation script will create a random one for you.
 **IMPORTANT:** Because these devices have no IPv6 NAT capability, IPv6 packets from client devices will *NOT* be sent via a WireGuard tunnel acting as a client to a remote VPN server. IPv6 traffic from the router itself *will* be routed via the tunnel. IPv4 traffic for both the router and client devices *will* be routed via the tunnel.
@@ -107,7 +109,7 @@ If you have a static IP address and a domain name assigned by your ISP, the doma
 `./tch-gui-unhide -x wireguard`
 #### Removal Instructions
 1. Do **not** delete `tch-gui-unhide-xtra.wireguard`
-2. Uninstall openwrt-wireguard-go: `wg --uninstall`
+2. Uninstall openwrt-wireguard-go: `wg --uninstall` (or, if you use the kernel module, remove its packages)
 3. Re-run `tch-gui-unhide` to remove the GUI changes, custom configuration and firewall script
 4. Now you can delete `tch-gui-unhide-xtra.wireguard`
 
