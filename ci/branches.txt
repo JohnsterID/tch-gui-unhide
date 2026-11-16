@@ -1,7 +1,6 @@
 # Branches of this fork merged, in this order, onto upstream master to form `develop`.
 # Only branches written by the fork owner belong here; ci/build-develop.sh refuses
 # any commit whose author or committer is someone else. One branch per line; # starts a comment.
-# The 24 branches listed until 16 Nov 2026 are all merged upstream (#258-#316).
-add-interface-icmpv6-echo-local-addresses
-add-lan-wifi-networks
-fix-traffic-monitor-stale-lock
+# Merged upstream and removed: the 24 branches listed until 16 Nov 2026 (#258-#316), AY (#317) and AZ (#318).
+fix-traffic-monitor-lock
+skip-idle-wifi-rebind-recover
