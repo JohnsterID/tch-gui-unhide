@@ -1,6 +1,8 @@
 # Branches of this fork merged, in this order, onto upstream master to form `develop`.
 # Only branches written by the fork owner belong here; ci/build-develop.sh refuses
 # any commit whose author or committer is someone else. One branch per line; # starts a comment.
-# Merged upstream and removed: the 24 branches listed until 16 Nov 2026 (#258-#316), AY (#317) and AZ (#318).
+# Merged upstream and removed: the 24 branches listed until 16 Nov 2026 (#258-#316), AY (#317), AZ (#318) and the Wi-Fi Networks recover follow-up (#319).
 fix-traffic-monitor-lock
-skip-idle-wifi-rebind-recover
+fix-xdsl-modes-delete
+fix-gateway-ntp-dhcp-default
+fix-dhcpv6-log-level-default
